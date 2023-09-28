@@ -1,5 +1,6 @@
-#moved time, hostname, and IPadress to GenerateJsonReportandUpload
+#pull current security configuration and store for future comparision with target configuration to measure compliance
 
+#output file
 $currentStatePath = "C:\Users\bob\Desktop\currentState.json"
 
 # Get Windows Firewall profile statuses
