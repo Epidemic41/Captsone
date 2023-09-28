@@ -1,5 +1,7 @@
 #moved time, hostname, and IPadress to GenerateJsonReportandUpload
 
+$currentStatePath = "C:\Users\bob\Desktop\currentState.json"
+
 # Get Windows Firewall profile statuses
 $firewallProfiles = Get-NetFirewallProfile
 
@@ -119,4 +121,4 @@ $systemInfo = [PSCustomObject]@{
 }
 
 # Convert the object to JSON and save it to a file
-$systemInfo | ConvertTo-Json | Set-Content -Path "C:\Users\bob\Desktop\currentState.json"
+$systemInfo | ConvertTo-Json | Set-Content -Path $currentStatePath
