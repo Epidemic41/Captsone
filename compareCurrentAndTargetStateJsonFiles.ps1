@@ -1,49 +1,78 @@
 # Define the paths to the JSON files
-$currentStatePath = "C:\Users\David\Documents\ASU\currentState.json"
-$targetStatePath = "C:\Users\David\Documents\ASU\Capstone\targetState.json"
+
+#input files
+$currentStatePath = "C:\Users\bob\Desktop\currentState.json"
+$targetStatePath = "C:\Users\bob\Desktop\targetState.json"
+
+#output files
+$nonCompliantOutputPath = "C:\Users\bob\Desktop\nonCompliantOutput.json"
+$compliantOutputPath = "C:\Users\bob\Desktop\CompliantOutput.json"
 
 # Read the content of the JSON files
 $currentState = Get-Content -Path $currentStatePath | ConvertFrom-Json
 $targetState = Get-Content -Path $targetStatePath | ConvertFrom-Json
 
 # Define a flag to track compliance
-$compliant = $true
+$global:compliant = $true
+
+# Arrays to store compliant and non-compliant properties
+$nonCompliantProperties = @()
+$compliantProperties = @()
 
 # Loop through keys in target state
 foreach ($key in $targetState.PSObject.Properties.Name) {
-    if ($key -eq "DateEpoch" -or $key -eq "Hostname" -or $key -eq "IPAddress"){
-        continue
-    }
 
-    #stores value assoicated with key
+    #stores value associated with key
     $targetValue = $targetState.$key
     $currentValue = $currentState.$key
 
     # check if array -isarray, -contains
-    # recurision function
+    # recursion function
     if ($targetValue -is [array]) {
-         if ($currentValue -contains $targetValue) {
+        if ($currentValue -contains $targetValue) {
             Write-Host "!Property $key is not compliant. Target: $targetValue, Current: $currentValue"
             $compliant = $false
-    }
-        if ($currentValue -contains $targetValue) {
-            Write-Host "*Property $key is compliant. Target: $targetValue, Current: $currentValue"
-    }
+            $nonCompliantProperties += @{
+                Property = $key
+                TargetValue = $targetValue
+                CurrentValue = $currentValue
+            }
+        }
+        else {
+            $compliantProperties += @{
+                Property = $key
+                TargetValue = $targetValue
+                CurrentValue = $currentValue
+            }
+        }
     }
 
-    # if not array do bellow
+    # if not array do below
     # Check if current value matches target value
-    if (-not ($targetValue -is [array])) {
-        if ($currentValue -ne $targetValue) {
-            Write-Host "!Property $key is not compliant. Target: $targetValue, Current: $currentValue"
-            $compliant = $false
+    elseif ($currentValue -ne $targetValue) {
+        Write-Host "!Property $key is not compliant. Target: $targetValue, Current: $currentValue"
+        $compliant = $false
+        $nonCompliantProperties += @{
+            Property = $key
+            TargetValue = $targetValue
+            CurrentValue = $currentValue
+        }
     }
-        if ($currentValue -eq $targetValue) {
-            Write-Host "*Property $key is compliant. Target: $targetValue, Current: $currentValue"
+    else {
+        $compliantProperties += @{
+            Property = $key
+            TargetValue = $targetValue
+            CurrentValue = $currentValue
+        }
     }
-     }
 
 }
+
+# Save non-compliant properties to a JSON file
+$nonCompliantProperties | ConvertTo-Json | Set-Content -Path $nonCompliantOutputPath
+
+# Save compliant properties to a JSON file
+$compliantProperties | ConvertTo-Json | Set-Content -Path $compliantOutputPath
 
 # Check compliance status
 if ($compliant) {
