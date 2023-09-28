@@ -1,0 +1,65 @@
+{
+    "CompliantTF":  true,
+    "IPAddress":  "192.168.1.29",
+    "DateEpoch":  1695348975,
+    "Hostname":  "DESKTOP-PI49CI7",
+    "ComparisonResults":  {
+        "nonCompliantProperties":  {
+                                       "CurrentValue":  0,
+                                       "Property":  "firewallDomainStatus",
+                                       "TargetValue":  1
+                                   },
+        "compliantProperties":  {
+                                    "value":  [
+                                                  "@{CurrentValue=1; Property=firewallDomainStatus; TargetValue=1}",
+                                                  "@{CurrentValue=1; Property=firewallPrivateStatus; TargetValue=1}",
+                                                  "@{CurrentValue=1; Property=firewallPublicStatus; TargetValue=1}",
+                                                  "@{CurrentValue=1; Property=UACStatus; TargetValue=System.Object[]}",
+                                                  "@{CurrentValue=Automatic; Property=WindowsUpdateStatus; TargetValue=System.Object[]}",
+                                                  "@{CurrentValue=True; Property=BehaviorMonitorEnabled; TargetValue=True}",
+                                                  "@{CurrentValue=True; Property=AMServiceEnabled; TargetValue=True}",
+                                                  "@{CurrentValue=True; Property=AntivirusEnabled; TargetValue=True}",
+                                                  "@{CurrentValue=True; Property=RealTimeProtectionEnabled; TargetValue=True}",
+                                                  "@{CurrentValue=True; Property=AntispywareEnabled; TargetValue=True}",
+                                                  "@{CurrentValue=0; Property=ComputerState; TargetValue=System.Object[]}"
+                                              ],
+                                    "Count":  11
+                                }
+    },
+    "TargetState":  {
+                        "firewallDomainStatus":  1,
+                        "firewallPrivateStatus":  1,
+                        "firewallPublicStatus":  1,
+                        "UACStatus":  [
+                                          1,
+                                          2
+                                      ],
+                        "WindowsUpdateStatus":  [
+                                                    "Manual (Trigger Start)",
+                                                    "Automatic"
+                                                ],
+                        "BehaviorMonitorEnabled":  true,
+                        "AMServiceEnabled":  true,
+                        "AntivirusEnabled":  true,
+                        "RealTimeProtectionEnabled":  true,
+                        "AntispywareEnabled":  true,
+                        "ComputerState":  [
+                                              0,
+                                              2,
+                                              5
+                                          ]
+                    },
+    "CurrentState":  {
+                         "firewallDomainStatus":  1,
+                         "firewallPrivateStatus":  1,
+                         "firewallPublicStatus":  1,
+                         "UACStatus":  1,
+                         "WindowsUpdateStatus":  "Automatic",
+                         "AMServiceEnabled":  true,
+                         "AntispywareEnabled":  true,
+                         "AntivirusEnabled":  true,
+                         "RealTimeProtectionEnabled":  true,
+                         "BehaviorMonitorEnabled":  true,
+                         "ComputerState":  0
+                     }
+}
