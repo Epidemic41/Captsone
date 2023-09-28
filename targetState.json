@@ -1,0 +1,13 @@
+{
+    "firewallDomainStatus":  1,
+    "firewallPrivateStatus":  1,
+    "firewallPublicStatus":  1,
+    "UACStatus":  [1, 2],
+    "WindowsUpdateStatus":  ["Manual (Trigger Start)", "Automatic"],
+    "BehaviorMonitorEnabled":  true,
+    "AMServiceEnabled":  true,
+    "AntivirusEnabled":  true,
+    "RealTimeProtectionEnabled":  true,
+    "AntispywareEnabled":  true,
+    "ComputerState":  [0, 2, 5]
+}
