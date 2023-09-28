@@ -3,10 +3,10 @@
 #input files
 $currentStateJsonPath = "C:\Users\bob\Desktop\currentState.json"
 $targetStateJsonPath = "C:\Users\bob\Desktop\targetState.json"
+$nonCompliantPropertiesJsonPath = "C:\Users\bob\Desktop\nonCompliantOutput.json"
+$compliantPropertiesJsonPath = "C:\Users\bob\Desktop\compliantOutput.json"
 
 #output files
-$nonCompliantJsonPath = "C:\Users\bob\Desktop\nonCompliantOutput.json"
-$compliantJsonPath = "C:\Users\bob\Desktop\compliantOutput.json"
 $reportOutputPath = "C:\Users\bob\Desktop\report.json"
 
 # Get the current date in epoch (Unix timestamp)
@@ -25,23 +25,22 @@ $currentState = Get-Content -Path $currentStateJsonPath | ConvertFrom-Json
 $targetState = Get-Content -Path $targetStateJsonPath | ConvertFrom-Json
 
 # Read the contents of the nonCompliant state JSON file
-$nonCompliant = Get-Content -Path $nonCompliantJsonPath | ConvertFrom-Json
+$nonCompliantProperties = Get-Content -Path $nonCompliantPropertiesJsonPath | ConvertFrom-Json
 
 # Read the contents of the compliant JSON file
-$compliant = Get-Content -Path $compliantJsonPath | ConvertFrom-Json
+$compliantProperties = Get-Content -Path $compliantPropertiesJsonPath | ConvertFrom-Json
 
 # Define the report template
 $reportTemplate = @{
     "DateEpoch" = $epochDate
     "Hostname" = $hostname
     "IPAddress" = $ipAddress
-    "Compliant" = $compliant
-    "currentState" = $currentState
-    "targetState" = $targetState
-    "comparisonResults" = @{
-    ##############################################################two $compliant variables. one is array, other is boolean, need to have the boolean be acessable globally. just rename boolean to $COMPLIANCEBOOLEAN
-        "compliantProperties" = $compliant
-        "nonCompliantProperties" = $nonCompliant
+    "CompliantTF" = $compliantTF
+    "CurrentState" = $currentState
+    "TargetState" = $targetState
+    "ComparisonResults" = @{
+        "compliantProperties" = $compliantProperties
+        "nonCompliantProperties" = $nonCompliantProperties
     }
 }
 
