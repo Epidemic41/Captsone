@@ -13,7 +13,7 @@ $currentState = Get-Content -Path $currentStatePath | ConvertFrom-Json
 $targetState = Get-Content -Path $targetStatePath | ConvertFrom-Json
 
 # Define a flag to track compliance
-$global:compliant = $true
+$global:compliantTF = $true
 
 # Arrays to store compliant and non-compliant properties
 $nonCompliantProperties = @()
@@ -31,7 +31,7 @@ foreach ($key in $targetState.PSObject.Properties.Name) {
     if ($targetValue -is [array]) {
         if ($currentValue -contains $targetValue) {
             Write-Host "!Property $key is not compliant. Target: $targetValue, Current: $currentValue"
-            $compliant = $false
+            $compliantTF = $false
             $nonCompliantProperties += @{
                 Property = $key
                 TargetValue = $targetValue
@@ -51,7 +51,7 @@ foreach ($key in $targetState.PSObject.Properties.Name) {
     # Check if current value matches target value
     elseif ($currentValue -ne $targetValue) {
         Write-Host "!Property $key is not compliant. Target: $targetValue, Current: $currentValue"
-        $compliant = $false
+        $compliantTF = $false
         $nonCompliantProperties += @{
             Property = $key
             TargetValue = $targetValue
@@ -75,7 +75,7 @@ $nonCompliantProperties | ConvertTo-Json | Set-Content -Path $nonCompliantOutput
 $compliantProperties | ConvertTo-Json | Set-Content -Path $compliantOutputPath
 
 # Check compliance status
-if ($compliant) {
+if ($compliantTF) {
     Write-Host "The current state is compliant with the target state."
 } else {
     Write-Host "The current state is not compliant with the target state."
