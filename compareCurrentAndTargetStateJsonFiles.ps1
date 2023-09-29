@@ -1,81 +1,81 @@
-# Define the paths to the JSON files
+# Define a function to check compliance
+function Check-Compliance {
+    param (
+        [Parameter(Mandatory=$true)]
+        [PSCustomObject]$CurrentState,
+        
+        [Parameter(Mandatory=$true)]
+        [PSCustomObject]$TargetState
+    )
 
-#input files
-$currentStatePath = "C:\Users\bob\Desktop\currentState.json"
-$targetStatePath = "C:\Users\bob\Desktop\targetState.json"
+    $nonCompliantProperties = @()
+    $compliantProperties = @()
+    $compliantTF = $true
 
-#output files
-$nonCompliantOutputPath = "C:\Users\bob\Desktop\nonCompliantOutput.json"
-$compliantOutputPath = "C:\Users\bob\Desktop\CompliantOutput.json"
+    foreach ($key in $TargetState.PSObject.Properties.Name) {
+        $targetValue = $TargetState.$key
+        $currentValue = $CurrentState.$key
 
-# Read the content of the JSON files
-$currentState = Get-Content -Path $currentStatePath | ConvertFrom-Json
-$targetState = Get-Content -Path $targetStatePath | ConvertFrom-Json
-
-# Define a flag to track compliance
-$global:compliantTF = $true
-
-# Arrays to store compliant and non-compliant properties
-$nonCompliantProperties = @()
-$compliantProperties = @()
-
-# Loop through keys in target state
-foreach ($key in $targetState.PSObject.Properties.Name) {
-
-    #stores value associated with key
-    $targetValue = $targetState.$key
-    $currentValue = $currentState.$key
-
-    # check if array -isarray, -contains
-    # recursion function
-    if ($targetValue -is [array]) {
-        if ($currentValue -contains $targetValue) {
+        if ($targetValue -is [array]) {
+            if (-not (Compare-Object $currentValue $targetValue -SyncWindow 0)) {
+                $compliantProperties += Create-PropertyObject $key $targetValue $currentValue
+            } else {
+                Write-Host "!Property $key is not compliant. Target: $($targetValue -join ', '), Current: $($currentValue -join ', ')"
+                $compliantTF = $false
+                $nonCompliantProperties += Create-PropertyObject $key $targetValue $currentValue
+            }
+        } elseif ($currentValue -ne $targetValue) {
             Write-Host "!Property $key is not compliant. Target: $targetValue, Current: $currentValue"
             $compliantTF = $false
-            $nonCompliantProperties += @{
-                Property = $key
-                TargetValue = $targetValue
-                CurrentValue = $currentValue
-            }
-        }
-        else {
-            $compliantProperties += @{
-                Property = $key
-                TargetValue = $targetValue
-                CurrentValue = $currentValue
-            }
+            $nonCompliantProperties += Create-PropertyObject $key $targetValue $currentValue
+        } else {
+            $compliantProperties += Create-PropertyObject $key $targetValue $currentValue
         }
     }
 
-    # if not array do below
-    # Check if current value matches target value
-    elseif ($currentValue -ne $targetValue) {
-        Write-Host "!Property $key is not compliant. Target: $targetValue, Current: $currentValue"
-        $compliantTF = $false
-        $nonCompliantProperties += @{
-            Property = $key
-            TargetValue = $targetValue
-            CurrentValue = $currentValue
-        }
+    return @{
+        Compliant = $compliantTF
+        NonCompliantProperties = $nonCompliantProperties
+        CompliantProperties = $compliantProperties
     }
-    else {
-        $compliantProperties += @{
-            Property = $key
-            TargetValue = $targetValue
-            CurrentValue = $currentValue
-        }
-    }
-
 }
 
-# Save non-compliant properties to a JSON file
-$nonCompliantProperties | ConvertTo-Json | Set-Content -Path $nonCompliantOutputPath
+# Define a function to create a property object
+function Create-PropertyObject {
+    param (
+        [string]$Property,
+        $TargetValue,
+        $CurrentValue
+    )
 
-# Save compliant properties to a JSON file
-$compliantProperties | ConvertTo-Json | Set-Content -Path $compliantOutputPath
+    return @{
+        Property = $Property
+        TargetValue = $TargetValue
+        CurrentValue = $CurrentValue
+    }
+}
 
-# Check compliance status
-if ($compliantTF) {
+# Parameterize Paths
+param (
+    [string]$CurrentStatePath = "C:\Users\bob\Desktop\currentState.json",
+    [string]$TargetStatePath = "C:\Users\bob\Desktop\targetState.json",
+    [string]$NonCompliantOutputPath = "C:\Users\bob\Desktop\nonCompliantOutput.json",
+    [string]$CompliantOutputPath = "C:\Users\bob\Desktop\CompliantOutput.json"
+)
+
+# Read JSON files and convert to PSCustomObject
+$currentState = Get-Content -Path $CurrentStatePath | ConvertFrom-Json
+$targetState = Get-Content -Path $TargetStatePath | ConvertFrom-Json
+
+# Check compliance and get results
+$results = Check-Compliance -CurrentState $currentState -TargetState $targetState
+
+# Save properties to JSON files
+$results.NonCompliantProperties | ConvertTo-Json | Set-Content -Path $NonCompliantOutputPath
+$results.CompliantProperties | ConvertTo-Json | Set-Content -Path $CompliantOutputPath
+
+# Output compliance status
+if ($results.Compliant) {
     Write-Host "The current state is compliant with the target state."
 } else {
     Write-Host "The current state is not compliant with the target state."
