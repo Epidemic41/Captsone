@@ -2,8 +2,7 @@ from flask import Flask, render_template, send_file
 from pymongo import MongoClient
 import datetime
 import json
-#Download module in 'my_env'
-# from fpdf import FPDF
+from fpdf import FPDF
 
 app = Flask(__name__)
 
@@ -41,6 +40,19 @@ def countNoncompliantHosts(collection):
     except Exception as e:
         return f"Failed to connect to the database: {e}"
 
+def getHostsInfo(collection):
+    try:
+        hosts_info = list(collection.find({}))
+        return hosts_info
+    except Exception as e:
+        return f"Failed to retrieve hosts information: {e}"
+
+def createPdfFromJson(json_data, pdf_file):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.multi_cell(0, 10, json.dumps(json_data, indent=4))
+    pdf.output(pdf_file)
 
 #display humanreadable human time in html
 
@@ -129,7 +141,69 @@ def index():
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++
 @app.route('/hosts')
 def hosts():
-    return render_template ('hosts.html')
+    try:
+        #connect to MongoDB
+        usename = "webappUser"
+        paswd = "ReportT!me"
+        host = "192.168.168.142"
+        port = "27017"
+        myDatabase = 'ForwardDB'
+
+        connectionURL = f"mongodb://{usename}:{paswd}@{host}:{port}/{myDatabase}"
+        
+        client = MongoClient(connectionURL)
+        
+        #create reference to 
+        db = client[myDatabase]
+
+        #define collection
+        collection = db['ForwardCollection']
+
+        #find all documents in the collection
+        cursor = collection.find({})
+            #print("cursor is: ", cursor)
+        #convert cursor to a list of dictionaries. all database contents are stored here?
+        documents = list(cursor)
+            #print(documents)
+
+        #needed to get number of compliant and noncompliant machines
+        CompliantTF = [doc.get('CompliantTF') for doc in documents]
+        compliantCount = countCompliantHosts(collection)
+        noncompliantCount = countNoncompliantHosts(collection)
+
+        #get 'DateEpoch' values. 
+            #'DateEpoch' is json key
+            #'date_epoch_values' is reference in the html
+        date_epoch_values = [doc.get('DateEpoch') for doc in documents]
+        Hostname = [doc.get('Hostname') for doc in documents]
+        CompliantTF = [doc.get('CompliantTF') for doc in documents]
+
+        hostsInfo = getHostsInfo(collection)
+        for host in hostsInfo:
+            host['DateEpoch'] = convertEpoch2HumanTime(convertStringList2IntList([host['DateEpoch']]))[0]
+
+#TimeOfHuman = convertEpoch2HumanTime(convertStringList2IntList(date_epoch_values))
+
+        #LastScan = collection.find().sort("DateEpoch", -1 ).limit(1)
+        #LastScan = str(LastScan)
+
+        LastScanCursor = collection.find().sort("DateEpoch", -1 ).limit(1)
+        LastScanDocument = list(LastScanCursor)[0]
+        LastScanEpoch = LastScanDocument.get('DateEpoch')
+        LastScanHuman = convertEpoch2HumanTime([LastScanEpoch])[0]
+
+        
+        
+        #print("convertEpoch2HumanTime method test: ", convertEpoch2HumanTime(convertStringList2IntList(date_epoch_values)))
+
+        #convert epochtime into integer so datetime will take it 
+        #print(convertEpoch2HumanTime(convertStringList2IntList(date_epoch_values)))
+        #print("date_epoch_values: ", date_epoch_values)
+
+        return render_template('hosts.html' ,hostsInfo = hostsInfo, compliantCount = compliantCount,noncompliantCount = noncompliantCount, LastScanHuman = LastScanHuman, Hostname = Hostname, CompliantTF = CompliantTF, TimeOfHuman = convertEpoch2HumanTime(convertStringList2IntList(date_epoch_values)))
+     
+    except Exception as e:
+        return f"Failed to connect to database: {e}"
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++
 @app.route('/machine')
 def machine():
@@ -192,8 +266,15 @@ def machine():
         return f"Failed to connect to database: {e}"
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+@app.route('/download_pdf/<filename>')
+def download_pdf(filename):
+    json_data = {...}  # Replace with your JSON data
+    pdf_file = f'{filename}.pdf'
+    createPdfFromJson(json_data, pdf_file)
+    return send_file(pdf_file, as_attachment=True)
 
 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 #covers all app.routes
