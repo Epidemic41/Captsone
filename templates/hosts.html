@@ -76,6 +76,7 @@
                 <th>Host Name</th>
                 <th>Compliant</th>
                 <th>Scan Date</th>
+                <th>JSON _id</th>
                 <th>PDF Download</th>
               </tr>
             </thead>
@@ -85,8 +86,10 @@
                   <td>{{ host.Hostname }}</td>
                   <td>{{ host.CompliantTF }}</td>
                   <td>{{ host.DateEpoch }}</td>
-                  <td><a href="{{ host.Link }}">Link</a></td>
-                  <a href="{{ url_for('download_pdf', filename='sample') }}">Download PDF</a>
+                  <td>{{ host._id }}</td>
+                  <td><a href="{{ url_for('download_pdf', object_id='ObjectId(' ~ host._id ~ ')') }}">Download PDF</a></td>
+                  
+                  
 
                 </tr>
               {% endfor %}
