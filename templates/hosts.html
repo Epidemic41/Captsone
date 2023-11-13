@@ -52,10 +52,10 @@
     <div class="container border link-margin">
       <div class="row">
         <div class="col-md-6 text-center">
-          <h1><a href="{{ url_for('index') }}">Home</a></h1>
+          <h1><a href="{{ url_for('index') }}">Dashboard</a></h1>
         </div>
         <div class="col-md-6 text-center">
-          <h1><a href="{{ url_for('machine') }}">Machines</a></h1>
+          <h1><a href="{{ url_for('hosts') }}">Hosts</a></h1>
         </div>
       </div>
       <div class="row">
@@ -76,21 +76,18 @@
                 <th>Host Name</th>
                 <th>Compliant</th>
                 <th>Scan Date</th>
-                <th>JSON _id</th>
+                <!-- <th>JSON _id</th> -->
                 <th>PDF Download</th>
               </tr>
             </thead>
             <tbody>
               {% for host in hostsInfo %}
                 <tr>
-                  <td>{{ host.Hostname }}</td>
+                  <td><a href="{{ url_for('machine', hostname=host.Hostname) }}">{{ host.Hostname }}</a></td>
                   <td>{{ host.CompliantTF }}</td>
                   <td>{{ host.DateEpoch }}</td>
-                  <td>{{ host._id }}</td>
+                 <!--  <td>{{ host._id }}</td> -->
                   <td><a href="{{ url_for('download_pdf', object_id='ObjectId(' ~ host._id ~ ')') }}">Download PDF</a></td>
-                  
-                  
-
                 </tr>
               {% endfor %}
             </tbody>
