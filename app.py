@@ -7,15 +7,12 @@ from bson import ObjectId
 
 app = Flask(__name__)
 
-#get epoch time in list 'date_epoch_values'
-
 #convert string list to int list
 def convertStringList2IntList(StringList):
     IntList = [int(x) for x in StringList]
     #print("convertStringList2IntList Method Test: ", IntList)
     return IntList
 
-#get rid of list so datetime library will convert to humanreadable
 #feed into convertStringList2IntList
 #convert int list to human readable
 def convertEpoch2HumanTime(epochTime):
@@ -44,19 +41,26 @@ def countNoncompliantHosts(collection):
 def getHostsInfo(collection):
     try:
         hosts_info = list(collection.find({}))
-        #for host in hosts_info:
-            #host['DateEpoch'] = convertEpoch2HumanTime(convertStringList2IntList([host['DateEpoch']]))[0]
-        print("getHostsInfo called, returning", hosts_info)
         return hosts_info
     except Exception as e:
         return f"Failed to retrieve hosts information: {e}"
 
+
 def createPdfFromJson(json_data, pdf_file):
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.multi_cell(0, 10, json.dumps(json_data, indent=4))
+    
+    # Use monospaced font for better JSON representation
+    pdf.set_font("Courier", size=10)
+    
+    # Dump the JSON data with indentation
+    json_str = json.dumps(json_data, indent=4)
+    
+    # Add JSON data to the PDF
+    pdf.multi_cell(0, 10, json_str)
+
     pdf.output(pdf_file)
+
 
 def getJsonDataForId(object_id):
     try:
@@ -81,13 +85,27 @@ def getJsonDataForId(object_id):
         collection = db['ForwardCollection']
         hostsInfo = getHostsInfo(collection)
         
+        #change epoch time in pdf report human readable
+        #print("HostsInfo type: ", type(hostsInfo))
+        #for host in hostsInfo:
+        # Check if 'DateEpoch' is an integer before conversion
+            #if isinstance(host['DateEpoch'], int):
+                #host['DateEpoch'] = convertEpoch2HumanTime([host['DateEpoch']])[0]
+                #print("[host['DateEpoch']] Test D1: ", host['Hostname'], host['DateEpoch'])
+            #else:
+                #print("DateEpoch is not an int on host ", host)
+
         #fix string issue?
         #did this break the capital Objects in the app/download route?
         #object_id = ObjectId(object_id)
-        object_id = ObjectId('654aa925f2fa34af89ddb845')
+        print("getJsonDataForId(object_id) object_id is 4a", object_id, type(object_id))
+        object_idStripped = object_id.strip('ObjectId(').rstrip(')')
+        print("getJsonDataForId(object_id) object_id is 4b", object_idStripped, type(object_idStripped))
+        object_id = ObjectId(object_idStripped)
+        print("getJsonDataForId(object_id) object_id is 4c", object_id, type(object_id))
 
         json_data = next((host for host in hostsInfo if host['_id'] == object_id), None)
-        print("json_data in getjsondataforID TEST 3b", json_data)
+        print("json_data in getjsondataforID TEST 3c", json_data)
         #returning 'None'
         if json_data:
             return {
@@ -104,72 +122,59 @@ def getJsonDataForId(object_id):
  
 #def Connect2MongoDB():
 
-
-
 @app.route('/')
 def index():
     try:
-        #connect to MongoDB
-        usename = "webappUser"
-        paswd = "ReportT!me"
+        # Connect to MongoDB
+        username = "webappUser"
+        password = "ReportT!me"
         host = "192.168.168.142"
         port = "27017"
         myDatabase = 'ForwardDB'
 
-        connectionURL = f"mongodb://{usename}:{paswd}@{host}:{port}/{myDatabase}"
+        connectionURL = f"mongodb://{username}:{password}@{host}:{port}/{myDatabase}"
         
         client = MongoClient(connectionURL)
         
-        #create reference to 
+        # Create reference to 
         db = client[myDatabase]
 
-        #define collection
+        # Define collection
         collection = db['ForwardCollection']
 
-        #find all documents in the collection
-        cursor = collection.find({})
-            #print("cursor is: ", cursor)
-        #convert cursor to a list of dictionaries. all database contents are stored here?
-        documents = list(cursor)
-            #print(documents)
+        # Use aggregation pipeline to get the most recent document for each host
+        pipeline = [
+            {"$sort": {"DateEpoch": -1}},
+            {"$group": {"_id": "$Hostname", "latest_doc": {"$first": "$$ROOT"}}},
+            {"$replaceRoot": {"newRoot": "$latest_doc"}}
+        ]
 
-        #needed to get number of compliant and noncompliant machines
-        CompliantTF = [doc.get('CompliantTF') for doc in documents]
-        compliantCount = countCompliantHosts(collection)
-        noncompliantCount = countNoncompliantHosts(collection)
+        # Execute the aggregation pipeline
+        documents = list(collection.aggregate(pipeline))
+
+        # Needed to get the number of compliant and noncompliant machines
+        compliantCount = sum(doc.get('CompliantTF') == True for doc in documents)
+        noncompliantCount = sum(doc.get('CompliantTF') == False for doc in documents)
 
         CompliantHosts = [doc.get('Hostname') for doc in documents if doc.get('CompliantTF') == True]
         NoncompliantHosts = [doc.get('Hostname') for doc in documents if doc.get('CompliantTF') == False]
 
-
-        #get 'DateEpoch' values. 
-            #'DateEpoch' is json key
-            #'date_epoch_values' is reference in the html
+        # Get 'DateEpoch' values. 
         date_epoch_values = [doc.get('DateEpoch') for doc in documents]
         Hostname = [doc.get('Hostname') for doc in documents]
         CompliantTF = [doc.get('CompliantTF') for doc in documents]
 
-        #LastScan = collection.find().sort("DateEpoch", -1 ).limit(1)
-        #LastScan = str(LastScan)
-
-        LastScanCursor = collection.find().sort("DateEpoch", -1 ).limit(1)
+        # Get details for the last scan
+        LastScanCursor = collection.find().sort("DateEpoch", -1).limit(1)
         LastScanDocument = list(LastScanCursor)[0]
         LastScanEpoch = LastScanDocument.get('DateEpoch')
         LastScanHuman = convertEpoch2HumanTime([LastScanEpoch])[0]
 
-        
-        
-        #print("convertEpoch2HumanTime method test: ", convertEpoch2HumanTime(convertStringList2IntList(date_epoch_values)))
+        return render_template('index.html', NoncompliantHosts=NoncompliantHosts, CompliantHosts=CompliantHosts, compliantCount=compliantCount, noncompliantCount=noncompliantCount, LastScanHuman=LastScanHuman, Hostname=Hostname, CompliantTF=CompliantTF, TimeOfHuman=convertEpoch2HumanTime(convertStringList2IntList(date_epoch_values)))
 
-        #convert epochtime into integer so datetime will take it 
-        #print(convertEpoch2HumanTime(convertStringList2IntList(date_epoch_values)))
-        #print("date_epoch_values: ", date_epoch_values)
-        
-        return render_template('index.html' ,NoncompliantHosts = NoncompliantHosts, CompliantHosts = CompliantHosts, compliantCount = compliantCount,noncompliantCount = noncompliantCount, LastScanHuman = LastScanHuman, Hostname = Hostname, CompliantTF = CompliantTF, TimeOfHuman = convertEpoch2HumanTime(convertStringList2IntList(date_epoch_values)))
-     
     except Exception as e:
-        return f"Failed to connect to database: {e}"
-    
+        return f"Def index error: {e}"
+
 
 
 
@@ -187,7 +192,7 @@ def index():
 @app.route('/hosts')
 def hosts():
     try:
-        #connect to MongoDB
+        # Connect to MongoDB
         usename = "webappUser"
         paswd = "ReportT!me"
         host = "192.168.168.142"
@@ -195,64 +200,45 @@ def hosts():
         myDatabase = 'ForwardDB'
 
         connectionURL = f"mongodb://{usename}:{paswd}@{host}:{port}/{myDatabase}"
-        
         client = MongoClient(connectionURL)
         
-        #create reference to 
+        # Create a reference to the database
         db = client[myDatabase]
 
-        #define collection
+        # Define the collection
         collection = db['ForwardCollection']
 
-        #find all documents in the collection
-        cursor = collection.find({})
-            #print("cursor is: ", cursor)
-        #convert cursor to a list of dictionaries. all database contents are stored here?
-        documents = list(cursor)
-            #print(documents)
+        # Use aggregation pipeline to get the most recent document for each host
+        pipeline = [
+            {"$sort": {"DateEpoch": -1}},
+            {"$group": {"_id": "$Hostname", "latest_doc": {"$first": "$$ROOT"}}},
+            {"$replaceRoot": {"newRoot": "$latest_doc"}}
+        ]
 
-        #needed to get number of compliant and noncompliant machines
-        CompliantTF = [doc.get('CompliantTF') for doc in documents]
-        compliantCount = countCompliantHosts(collection)
-        noncompliantCount = countNoncompliantHosts(collection)
+        # Execute the aggregation pipeline
+        hostsInfo = list(collection.aggregate(pipeline))
 
-        #get 'DateEpoch' values. 
-            #'DateEpoch' is json key
-            #'date_epoch_values' is reference in the html
-        date_epoch_values = [doc.get('DateEpoch') for doc in documents]
-        Hostname = [doc.get('Hostname') for doc in documents]
-        CompliantTF = [doc.get('CompliantTF') for doc in documents]
+        # Convert DateEpoch to human-readable format
+        for host in hostsInfo:
+            if isinstance(host['DateEpoch'], int):
+                host['DateEpoch'] = convertEpoch2HumanTime([host['DateEpoch']])[0]
 
-        hostsInfo = getHostsInfo(collection)
-        print("hostsinfo from host", hostsInfo)
-
-#TimeOfHuman = convertEpoch2HumanTime(convertStringList2IntList(date_epoch_values))
-
-        #LastScan = collection.find().sort("DateEpoch", -1 ).limit(1)
-        #LastScan = str(LastScan)
-
-        LastScanCursor = collection.find().sort("DateEpoch", -1 ).limit(1)
+        # Get the details for the last scan
+        LastScanCursor = collection.find().sort("DateEpoch", -1).limit(1)
         LastScanDocument = list(LastScanCursor)[0]
         LastScanEpoch = LastScanDocument.get('DateEpoch')
         LastScanHuman = convertEpoch2HumanTime([LastScanEpoch])[0]
 
-        
-        
-        #print("convertEpoch2HumanTime method test: ", convertEpoch2HumanTime(convertStringList2IntList(date_epoch_values)))
+        return render_template('hosts.html', hostsInfo=hostsInfo, LastScanHuman=LastScanHuman)
 
-        #convert epochtime into integer so datetime will take it 
-        #print(convertEpoch2HumanTime(convertStringList2IntList(date_epoch_values)))
-        #print("date_epoch_values: ", date_epoch_values)
-
-        return render_template('hosts.html' ,hostsInfo = hostsInfo, compliantCount = compliantCount,noncompliantCount = noncompliantCount, LastScanHuman = LastScanHuman, Hostname = Hostname, CompliantTF = CompliantTF, TimeOfHuman = convertEpoch2HumanTime(convertStringList2IntList(date_epoch_values)))
-     
     except Exception as e:
-        return f"Failed to connect to database: {e}"
+        return f"Def hosts() error: {e}"
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++
-@app.route('/machine')
-def machine():
+@app.route('/machine/<hostname>')
+def machine(hostname):
     try:
-        #connect to MongoDB
+        # Connect to MongoDB
         usename = "webappUser"
         paswd = "ReportT!me"
         host = "192.168.168.142"
@@ -260,66 +246,50 @@ def machine():
         myDatabase = 'ForwardDB'
 
         connectionURL = f"mongodb://{usename}:{paswd}@{host}:{port}/{myDatabase}"
-        
+
         client = MongoClient(connectionURL)
-        
-        #create reference to 
+
+        # Create reference to
         db = client[myDatabase]
 
-        #define collection
+        # Define collection
         collection = db['ForwardCollection']
 
-        #find all documents in the collection
-        cursor = collection.find({})
-            #print("cursor is: ", cursor)
-        #convert cursor to a list of dictionaries. all database contents are stored here?
+        # Find documents for the specified hostname
+        cursor = collection.find({'Hostname': hostname})
+
+        # Convert cursor to a list of dictionaries
         documents = list(cursor)
-            #print(documents)
 
-        #needed to get number of compliant and noncompliant machines
-        CompliantTF = [doc.get('CompliantTF') for doc in documents]
-        compliantCount = countCompliantHosts(collection)
-        noncompliantCount = countNoncompliantHosts(collection)
+        # Convert DateEpoch to human-readable format
+        for host in documents:
+            if isinstance(host['DateEpoch'], int):
+                host['DateEpoch'] = convertEpoch2HumanTime([host['DateEpoch']])[0]
+        # Extract relevant information
+        #date_epoch_values = [doc.get('DateEpoch') for doc in documents]
+        #Hostname = [doc.get('Hostname') for doc in documents]
+        #CompliantTF = [doc.get('CompliantTF') for doc in documents]
 
-        #get 'DateEpoch' values. 
-            #'DateEpoch' is json key
-            #'date_epoch_values' is reference in the html
-        date_epoch_values = [doc.get('DateEpoch') for doc in documents]
-        Hostname = [doc.get('Hostname') for doc in documents]
-        CompliantTF = [doc.get('CompliantTF') for doc in documents]
+        # Find the last scan for the specified hostname
+        #LastScanCursor = collection.find({'Hostname': hostname}).sort("DateEpoch", -1).limit(1)
+        #LastScanDocument = list(LastScanCursor)[0]
+        #LastScanEpoch = LastScanDocument.get('DateEpoch')
+        #LastScanHuman = convertEpoch2HumanTime([LastScanEpoch])[0]
 
-        #LastScan = collection.find().sort("DateEpoch", -1 ).limit(1)
-        #LastScan = str(LastScan)
+        return render_template('machine.html', hostname=hostname, documents=documents)
 
-        LastScanCursor = collection.find().sort("DateEpoch", -1 ).limit(1)
-        LastScanDocument = list(LastScanCursor)[0]
-        LastScanEpoch = LastScanDocument.get('DateEpoch')
-        LastScanHuman = convertEpoch2HumanTime([LastScanEpoch])[0]
-
-        
-        
-        #print("convertEpoch2HumanTime method test: ", convertEpoch2HumanTime(convertStringList2IntList(date_epoch_values)))
-
-        #convert epochtime into integer so datetime will take it 
-        #print(convertEpoch2HumanTime(convertStringList2IntList(date_epoch_values)))
-        #print("date_epoch_values: ", date_epoch_values)
-
-        return render_template('machine.html' ,compliantCount = compliantCount,noncompliantCount = noncompliantCount, LastScanHuman = LastScanHuman, Hostname = Hostname, CompliantTF = CompliantTF, TimeOfHuman = convertEpoch2HumanTime(convertStringList2IntList(date_epoch_values)))
-     
     except Exception as e:
-        return f"Failed to connect to database: {e}"
+        return f"Def machine error: {e}"
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 @app.route('/download_pdf/<object_id>')
 def download_pdf(object_id):
     try:
         print("download_PDF(Object_id) object_id TEST 1a: ", object_id)
-        #ObjectId(654aa93a5ecdc68f75d7858f)
+       
         json_data = getJsonDataForId(object_id)
         print("download_PDF(Object_id) getjsondataforID TEST 2a: ", json_data)
-            #returning 'None'
 
-            #not triggering
         if json_data:
             pdf_file = f'{object_id}.pdf'
             print("download_PDF(Object_id) If json_data TEST 3a: ", pdf_file)
@@ -327,7 +297,7 @@ def download_pdf(object_id):
             return send_file(pdf_file, as_attachment=True)
         else:
             return f"Error one: No data found for _id {object_id}"
-            #Error one: No data found for _id ObjectId(654aa93a5ecdc68f75d7858f)
+          
 
     except Exception as e:
         return f"Error two: {e}"
