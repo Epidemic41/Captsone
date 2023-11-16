@@ -21,6 +21,12 @@ def convertEpoch2HumanTime(epochTime):
         #("convertEpoch2HumanTime Method Test: ", HumanTime)    
     return datetimeObjects
 
+def convertEpochToReadableString(epochTime):
+    """ Convert a list of epoch times to a list of human-readable date-time strings. """
+    readableStrings = [datetime.datetime.fromtimestamp(epoch).strftime('%Y-%m-%d %H:%M:%S') for epoch in epochTime]
+    return readableStrings
+
+
 #display number of compliant machines
 def countCompliantHosts(collection):
     try:
@@ -108,6 +114,9 @@ def getJsonDataForId(object_id):
         print("json_data in getjsondataforID TEST 3c", json_data)
         #returning 'None'
         if json_data:
+            # Check and convert DateEpoch to human-readable string format
+            if 'DateEpoch' in json_data and isinstance(json_data['DateEpoch'], int):
+                json_data['DateEpoch'] = convertEpochToReadableString([json_data['DateEpoch']])[0]
             return {
                 key: json_data[key] for key in json_data.keys() if key != '_id'
             }
@@ -256,8 +265,7 @@ def machine(hostname):
         collection = db['ForwardCollection']
 
         # Find documents for the specified hostname
-        cursor = collection.find({'Hostname': hostname})
-
+        cursor = collection.find({'Hostname': hostname}).sort("DateEpoch", -1)
         # Convert cursor to a list of dictionaries
         documents = list(cursor)
 
