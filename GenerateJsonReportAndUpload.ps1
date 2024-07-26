@@ -1,53 +1,68 @@
+function Get-IPAddress {
+    param (
+        [string]$InterfaceAlias = 'Ethernet0'
+    )
 
-
-#input files
-$currentStateJsonPath = "C:\Users\bob\Desktop\currentState.json"
-$targetStateJsonPath = "C:\Users\bob\Desktop\targetState.json"
-$nonCompliantPropertiesJsonPath = "C:\Users\bob\Desktop\nonCompliantOutput.json"
-$compliantPropertiesJsonPath = "C:\Users\bob\Desktop\compliantOutput.json"
-
-#output files
-$reportOutputPath = "C:\Users\bob\Desktop\report.json"
-
-# Get the current date in epoch (Unix timestamp)
-$epochDate = [System.Math]::Round((Get-Date -UFormat %s))
-
-# Get the hostname
-$hostname = $env:COMPUTERNAME
-
-# Get the IP address
-$ipAddress = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Ethernet0' | Where-Object { $_.IPAddress -ne '127.0.0.1' }).IPAddress
-
-# Read the contents of the current state JSON file
-$currentState = Get-Content -Path $currentStateJsonPath | ConvertFrom-Json
-
-# Read the contents of the target state JSON file
-$targetState = Get-Content -Path $targetStateJsonPath | ConvertFrom-Json
-
-# Read the contents of the nonCompliant state JSON file
-$nonCompliantProperties = Get-Content -Path $nonCompliantPropertiesJsonPath | ConvertFrom-Json
-
-# Read the contents of the compliant JSON file
-$compliantProperties = Get-Content -Path $compliantPropertiesJsonPath | ConvertFrom-Json
-
-# Define the report template
-$reportTemplate = @{
-    "DateEpoch" = $epochDate
-    "Hostname" = $hostname
-    "IPAddress" = $ipAddress
-    "CompliantTF" = $compliantTF
-    "CurrentState" = $currentState
-    "TargetState" = $targetState
-    "ComparisonResults" = @{
-        "compliantProperties" = $compliantProperties
-        "nonCompliantProperties" = $nonCompliantProperties
+    try {
+        $ip = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias $InterfaceAlias | Where-Object { $_.IPAddress -ne '127.0.0.1' }).IPAddress
+        if ($null -eq $ip) { throw "No IP Address found for InterfaceAlias: $InterfaceAlias" }
+        return $ip
+    } catch {
+        Write-Error "Error getting IP Address: $_"
+        return $null
     }
 }
 
-# Convert the report template to JSON format
-$jsonOutput = $reportTemplate | ConvertTo-Json
+function Generate-Report {
+    param (
+        [string]$CurrentStatePath,
+        [string]$TargetStatePath,
+        [string]$NonCompliantPropertiesPath,
+        [string]$CompliantPropertiesPath,
+        [string]$ReportOutputPath
+    )
 
-# Write the JSON report to the specified output file
-Set-Content -Path $reportOutputPath -Value $jsonOutput
+    try {
+        $epochDate = [Math]::Round((Get-Date -UFormat %s))
+        $hostname = $env:COMPUTERNAME
+        $ipAddress = Get-IPAddress -InterfaceAlias 'Ethernet0'
 
-Write-Host "Report generated and saved to $reportOutputPath."
+        $currentState = Get-Content -Path $CurrentStatePath | ConvertFrom-Json
+        $targetState = Get-Content -Path $TargetStatePath | ConvertFrom-Json
+        $nonCompliantProperties = Get-Content -Path $NonCompliantPropertiesPath | ConvertFrom-Json
+        $compliantProperties = Get-Content -Path $CompliantPropertiesPath | ConvertFrom-Json
+        
+        $compliantTF = $null -eq $nonCompliantProperties # You might need to adjust this depending on how you define compliance
+
+        $report = @{
+            DateEpoch             = $epochDate
+            Hostname              = $hostname
+            IPAddress             = $ipAddress
+            CompliantTF           = $compliantTF
+            CurrentState          = $currentState
+            TargetState           = $targetState
+            ComparisonResults     = @{
+                compliantProperties    = $compliantProperties
+                nonCompliantProperties = $nonCompliantProperties
+            }
+        }
+
+        $report | ConvertTo-Json | Set-Content -Path $ReportOutputPath
+        Write-Host "Report generated and saved to $ReportOutputPath."
+
+    } catch {
+        Write-Error "Error generating report: $_"
+    }
+}
+
+# Parameterize Paths
+param (
+    [string]$CurrentStatePath = "C:\Users\bob\Desktop\currentState.json",
+    [string]$TargetStatePath = "C:\Users\bob\Desktop\targetState.json",
+    [string]$NonCompliantPropertiesPath = "C:\Users\bob\Desktop\nonCompliantOutput.json",
+    [string]$CompliantPropertiesPath = "C:\Users\bob\Desktop\compliantOutput.json",
+    [string]$ReportOutputPath = "C:\Users\bob\Desktop\report.json"
+)
+
+# Generate the report
+Generate-Report -CurrentStatePath $CurrentStatePath -TargetStatePath $TargetStatePath -NonCompliantPropertiesPath $NonCompliantPropertiesPath -CompliantPropertiesPath $CompliantPropertiesPath -ReportOutputPath $ReportOutputPath
